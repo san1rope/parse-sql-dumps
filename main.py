@@ -1,5 +1,6 @@
 import os
 import logging
+from pathlib import Path
 
 import sqlparse
 import collections
@@ -13,8 +14,11 @@ def main():
                         format=u'%(filename)s:%(lineno)d #%(levelname)-8s [%(asctime)s] - %(name)s - %(message)s')
     logger.info("Скрипт запущен!")
 
+    inputdata_path = Path(os.path.abspath("inputdata"))
+    inputdata_path.mkdir(parents=True, exist_ok=True)
+
     logger.info("Смотрю файлы в каталоге inputdata")
-    for filename in os.listdir("inputdata"):
+    for filename in os.listdir(inputdata_path):
         if not filename.endswith(".sql"):
             logger.info(f"Пропускаю файл - {filename}. Нету расширения .sql")
             pass
@@ -50,7 +54,9 @@ def main():
         }
 
         for key, value in data.items():
-            value.to_excel(f"outdata/{key}.xlsx", index=False)
+            outdata_filepath = Path(os.path.abspath(f"outdata/{key}.xlsx"))
+            outdata_filepath.parent.mkdir(parents=True, exist_ok=True)
+            value.to_excel(outdata_filepath, index=False)
             logger.info(f"Выгрузил данные в {key}.xlsx")
 
     logger.info("Закончил работу!")
