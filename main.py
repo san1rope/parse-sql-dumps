@@ -24,13 +24,12 @@ def main():
             pass
 
         logger.info(f"Начинаю распарсивать {filename}")
-        with open(f"inputdata/{filename}", "r", encoding="utf-8") as sqldump:
+        with open(f"inputdata/{filename}", "r") as sqldump:
             parser = sqlparse.parsestream(sqldump)
             headers = {}
             contents = collections.defaultdict(list)
 
             for statement in parser:
-
                 if statement.get_type() == 'INSERT':
                     sublists = statement.get_sublists()
                     table_info = next(sublists)
@@ -41,13 +40,27 @@ def main():
                     for col in table_info.get_parameters()
                 ]
 
-                contents[table_name].extend(
-                    tuple(
-                        s.value.strip('"\'')
-                        for s in next(rec.get_sublists()).get_identifiers()
-                    )
-                    for rec in next(sublists).get_sublists()
-                )
+                try:
+                    value_block = next(sublists)
+                    for rec in value_block.get_sublists():
+                        try:
+                            inner = next(rec.get_sublists())
+                            row = tuple(
+                                s.value.strip('"\'') for s in inner.get_identifiers()
+                            )
+                            contents[table_name].append(row)
+
+                        except StopIteration:
+                            logger.warning(f"Пустой подсписок в INSERT в таблицу {table_name}, пропускаю строку.")
+
+                        except Exception as e:
+                            logger.error(f"Ошибка при разборе строки INSERT: {e}")
+
+                except StopIteration:
+                    logger.warning(f"Не удалось получить VALUES-блок для {table_name}, пропускаю.")
+
+                except Exception as e:
+                    logger.error(f"Ошибка при разборе VALUES блока в INSERT: {e}")
 
         data = {
             name: pd.DataFrame.from_records(table, columns=headers[name]) for name, table in contents.items()
